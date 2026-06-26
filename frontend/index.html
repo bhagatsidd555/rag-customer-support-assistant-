@@ -1,0 +1,758 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>ManualMind – AI Support Assistant</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;600&family=IBM+Plex+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0e1117;
+      --surface:   #161b27;
+      --panel:     #1c2333;
+      --border:    #2a3347;
+      --accent:    #f5a623;
+      --accent2:   #e07b00;
+      --green:     #3ddc84;
+      --red:       #ff6b6b;
+      --text:      #d4dbe8;
+      --muted:     #6b7a99;
+      --white:     #f0f4ff;
+      --mono:      'IBM Plex Mono', monospace;
+      --sans:      'IBM Plex Sans', sans-serif;
+    }
+
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: var(--sans);
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 0 24px;
+      height: 56px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-family: var(--mono);
+      font-size: 15px;
+      font-weight: 600;
+      color: var(--white);
+      letter-spacing: 0.04em;
+    }
+    .logo-icon {
+      width: 30px; height: 30px;
+      background: var(--accent);
+      border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+    }
+    .status-pill {
+      display: flex; align-items: center; gap: 6px;
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 4px 12px;
+      border-radius: 20px;
+    }
+    .status-dot {
+      width: 7px; height: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+
+    .app-body {
+      display: flex;
+      flex: 1;
+      overflow: hidden;
+    }
+
+    aside {
+      width: 280px;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex;
+      flex-direction: column;
+      flex-shrink: 0;
+    }
+    .sidebar-section {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+    }
+    .sidebar-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.12em;
+      color: var(--muted);
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .upload-zone {
+      border: 1.5px dashed var(--border);
+      border-radius: 8px;
+      padding: 20px 12px;
+      text-align: center;
+      cursor: pointer;
+      transition: border-color .2s, background .2s;
+      background: var(--panel);
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--accent);
+      background: rgba(245,166,35,0.06);
+    }
+    .upload-icon { font-size: 28px; margin-bottom: 8px; }
+    .upload-text { font-size: 12px; color: var(--muted); line-height: 1.5; }
+    .upload-text span { color: var(--accent); font-weight: 500; }
+    #fileInput { display: none; }
+
+    .upload-progress {
+      margin-top: 10px;
+      display: none;
+    }
+    .progress-bar-bg {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+    }
+    .progress-bar-fill {
+      height: 100%;
+      background: var(--accent);
+      width: 0%;
+      transition: width .3s;
+      border-radius: 2px;
+    }
+    .progress-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 5px;
+    }
+
+    .doc-list { flex: 1; overflow-y: auto; padding: 12px 20px; }
+    .doc-empty {
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      padding: 24px 0;
+      font-family: var(--mono);
+    }
+    .doc-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 8px 10px;
+      border-radius: 6px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      margin-bottom: 8px;
+      transition: border-color .2s;
+    }
+    .doc-item:hover { border-color: var(--accent); }
+    .doc-icon { font-size: 16px; flex-shrink: 0; }
+    .doc-name {
+      flex: 1;
+      font-size: 12px;
+      color: var(--text);
+      word-break: break-all;
+      line-height: 1.3;
+    }
+    .doc-del {
+      background: none; border: none;
+      color: var(--muted); cursor: pointer;
+      font-size: 14px; padding: 2px 4px;
+      border-radius: 3px;
+      transition: color .2s, background .2s;
+      flex-shrink: 0;
+    }
+    .doc-del:hover { color: var(--red); background: rgba(255,107,107,.12); }
+
+    .model-select {
+      width: 100%;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      padding: 7px 10px;
+      border-radius: 6px;
+      font-family: var(--mono);
+      font-size: 12px;
+      cursor: pointer;
+      outline: none;
+    }
+    .model-select:focus { border-color: var(--accent); }
+
+    main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+    }
+
+    .chat-header {
+      padding: 14px 24px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-shrink: 0;
+    }
+    .chat-title { font-size: 14px; font-weight: 500; color: var(--white); }
+    .chat-subtitle { font-size: 11px; color: var(--muted); margin-top: 2px; font-family: var(--mono); }
+
+    .btn-clear {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--muted);
+      font-family: var(--mono);
+      font-size: 11px;
+      padding: 6px 14px;
+      border-radius: 5px;
+      cursor: pointer;
+      transition: all .2s;
+    }
+    .btn-clear:hover { border-color: var(--red); color: var(--red); }
+
+    #messages {
+      flex: 1;
+      overflow-y: auto;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 16px;
+    }
+    #messages::-webkit-scrollbar { width: 4px; }
+    #messages::-webkit-scrollbar-track { background: transparent; }
+    #messages::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+
+    .welcome-state {
+      margin: auto;
+      text-align: center;
+      max-width: 420px;
+    }
+    .welcome-glyph { font-size: 48px; margin-bottom: 16px; }
+    .welcome-title { font-size: 20px; font-weight: 600; color: var(--white); margin-bottom: 8px; }
+    .welcome-desc { font-size: 13px; color: var(--muted); line-height: 1.6; }
+    .welcome-steps {
+      margin-top: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      text-align: left;
+    }
+    .step {
+      display: flex; align-items: flex-start; gap: 10px;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      padding: 10px 14px;
+      border-radius: 6px;
+      font-size: 12px;
+      color: var(--muted);
+    }
+    .step-num {
+      font-family: var(--mono);
+      font-size: 11px;
+      color: var(--accent);
+      font-weight: 600;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    .msg {
+      display: flex;
+      flex-direction: column;
+      max-width: 780px;
+    }
+    .msg.user { align-self: flex-end; align-items: flex-end; }
+    .msg.assistant { align-self: flex-start; align-items: flex-start; }
+
+    .msg-role {
+      font-family: var(--mono);
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: .1em;
+      margin-bottom: 5px;
+      text-transform: uppercase;
+    }
+    .msg.user .msg-role { color: var(--accent); }
+    .msg.assistant .msg-role { color: var(--green); }
+
+    .msg-bubble {
+      padding: 12px 16px;
+      border-radius: 8px;
+      font-size: 13.5px;
+      line-height: 1.65;
+    }
+    .msg.user .msg-bubble {
+      background: rgba(245,166,35,.12);
+      border: 1px solid rgba(245,166,35,.25);
+      color: var(--white);
+    }
+    .msg.assistant .msg-bubble {
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .msg-bubble p { margin-bottom: 8px; }
+    .msg-bubble p:last-child { margin-bottom: 0; }
+    .msg-bubble code {
+      font-family: var(--mono);
+      font-size: 12px;
+      background: rgba(255,255,255,.07);
+      padding: 2px 5px;
+      border-radius: 3px;
+    }
+
+    .sources-row {
+      display: flex; align-items: center; gap: 6px;
+      flex-wrap: wrap;
+      margin-top: 8px;
+    }
+    .sources-label {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      letter-spacing: .06em;
+    }
+    .source-chip {
+      font-family: var(--mono);
+      font-size: 10px;
+      background: rgba(61,220,132,.08);
+      border: 1px solid rgba(61,220,132,.2);
+      color: var(--green);
+      padding: 2px 8px;
+      border-radius: 20px;
+    }
+
+    .typing-dots {
+      display: flex; gap: 4px; align-items: center;
+      padding: 10px 14px;
+    }
+    .typing-dots span {
+      width: 6px; height: 6px;
+      background: var(--muted);
+      border-radius: 50%;
+      animation: bounce .9s infinite;
+    }
+    .typing-dots span:nth-child(2) { animation-delay: .15s; }
+    .typing-dots span:nth-child(3) { animation-delay: .3s; }
+    @keyframes bounce { 0%,80%,100%{transform:scale(1)} 40%{transform:scale(1.4)} }
+
+    .input-bar {
+      padding: 16px 24px;
+      border-top: 1px solid var(--border);
+      background: var(--surface);
+      flex-shrink: 0;
+    }
+    .input-row {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+      background: var(--panel);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 10px 14px;
+      transition: border-color .2s;
+    }
+    .input-row:focus-within { border-color: var(--accent); }
+
+    #queryInput {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--white);
+      font-family: var(--sans);
+      font-size: 14px;
+      line-height: 1.5;
+      resize: none;
+      min-height: 24px;
+      max-height: 120px;
+    }
+    #queryInput::placeholder { color: var(--muted); }
+
+    #sendBtn {
+      background: var(--accent);
+      border: none;
+      width: 36px; height: 36px;
+      border-radius: 7px;
+      cursor: pointer;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 16px;
+      transition: background .2s, transform .1s;
+      flex-shrink: 0;
+    }
+    #sendBtn:hover { background: var(--accent2); }
+    #sendBtn:active { transform: scale(.95); }
+    #sendBtn:disabled { background: var(--border); cursor: not-allowed; }
+
+    .input-hint {
+      font-family: var(--mono);
+      font-size: 10px;
+      color: var(--muted);
+      margin-top: 6px;
+      text-align: right;
+    }
+
+    #toast {
+      position: fixed;
+      bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+      background: var(--panel);
+      border: 1px solid var(--border);
+      color: var(--text);
+      font-size: 13px;
+      padding: 10px 20px;
+      border-radius: 8px;
+      transition: transform .3s;
+      z-index: 999;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+    #toast.success { border-color: var(--green); color: var(--green); }
+    #toast.error { border-color: var(--red); color: var(--red); }
+
+    .doc-list::-webkit-scrollbar { width: 4px; }
+    .doc-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-icon">⚙</div>
+    ManualMind
+  </div>
+  <div class="status-pill">
+    <span class="status-dot"></span>
+    Ollama · llama3.2
+  </div>
+</header>
+
+<div class="app-body">
+
+  <aside>
+    <div class="sidebar-section">
+      <div class="sidebar-label">Upload Manual</div>
+      <div class="upload-zone" id="uploadZone">
+        <div class="upload-icon">📄</div>
+        <div class="upload-text">
+          Drop PDF here or <span>browse</span>
+        </div>
+        <input type="file" id="fileInput" accept=".pdf" multiple/>
+      </div>
+      <div class="upload-progress" id="uploadProgress">
+        <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+        <div class="progress-label" id="progressLabel">Processing…</div>
+      </div>
+    </div>
+
+    <div class="sidebar-section">
+      <div class="sidebar-label">Loaded Manuals</div>
+    </div>
+    <div class="doc-list" id="docList">
+      <div class="doc-empty" id="docEmpty">No manuals loaded yet.</div>
+    </div>
+
+    <div class="sidebar-section" style="margin-top:auto">
+      <div class="sidebar-label">Model</div>
+      <select class="model-select" id="modelSelect">
+        <option value="llama3.2">llama3.2</option>
+        <option value="llama3.1">llama3.1</option>
+        <option value="mistral">mistral</option>
+        <option value="phi3">phi3</option>
+        <option value="gemma2">gemma2</option>
+      </select>
+    </div>
+  </aside>
+
+  <main>
+    <div class="chat-header">
+      <div>
+        <div class="chat-title">Customer Support Assistant</div>
+        <div class="chat-subtitle">RAG · Vector Search · Source Citations</div>
+      </div>
+      <button class="btn-clear" onclick="clearChat()">Clear chat</button>
+    </div>
+
+    <div id="messages">
+      <div class="welcome-state" id="welcomeState">
+        <div class="welcome-glyph">🏭</div>
+        <div class="welcome-title">Manufacturing Manual AI</div>
+        <div class="welcome-desc">Ask anything about your uploaded manuals. The assistant searches relevant sections and provides source-cited answers.</div>
+        <div class="welcome-steps">
+          <div class="step"><span class="step-num">01</span>Upload a PDF manual using the sidebar</div>
+          <div class="step"><span class="step-num">02</span>Wait for processing (chunks + embeddings)</div>
+          <div class="step"><span class="step-num">03</span>Ask questions in natural language below</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="input-bar">
+      <div class="input-row">
+        <textarea id="queryInput" placeholder="Ask about your manual… e.g. How do I reset the safety valve?" rows="1"></textarea>
+        <button id="sendBtn" onclick="sendMessage()">➤</button>
+      </div>
+      <div class="input-hint">Shift+Enter for newline · Enter to send</div>
+    </div>
+  </main>
+</div>
+
+<div id="toast"></div>
+
+<script>
+  const API = "http://127.0.0.1:8000/api";
+  let sessionId = null;
+  let isLoading = false;
+
+  const textarea = document.getElementById("queryInput");
+  textarea.addEventListener("input", () => {
+    textarea.style.height = "auto";
+    textarea.style.height = Math.min(textarea.scrollHeight, 120) + "px";
+  });
+  textarea.addEventListener("keydown", (e) => {
+    if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+  });
+
+  const uploadZone = document.getElementById("uploadZone");
+  const fileInput = document.getElementById("fileInput");
+
+  uploadZone.addEventListener("click", () => fileInput.click());
+  uploadZone.addEventListener("dragover", (e) => { e.preventDefault(); uploadZone.classList.add("drag-over"); });
+  uploadZone.addEventListener("dragleave", () => uploadZone.classList.remove("drag-over"));
+  uploadZone.addEventListener("drop", (e) => {
+    e.preventDefault();
+    uploadZone.classList.remove("drag-over");
+    const files = [...e.dataTransfer.files].filter(f => f.name.endsWith(".pdf"));
+    files.forEach(uploadFile);
+  });
+  fileInput.addEventListener("change", () => {
+    [...fileInput.files].forEach(uploadFile);
+    fileInput.value = "";
+  });
+
+  async function uploadFile(file) {
+    const progress = document.getElementById("uploadProgress");
+    const fill = document.getElementById("progressFill");
+    const label = document.getElementById("progressLabel");
+
+    progress.style.display = "block";
+    label.textContent = `Uploading ${file.name}…`;
+
+    let pct = 0;
+    const interval = setInterval(() => {
+      pct = Math.min(pct + 8, 85);
+      fill.style.width = pct + "%";
+    }, 200);
+
+    try {
+      const form = new FormData();
+      form.append("file", file);
+      const res = await fetch(`${API}/upload`, { method: "POST", body: form });
+      
+      if (!res.ok) {
+        const errorText = await res.text();
+        throw new Error(`Upload Failed: ${res.status} - ${errorText}`);
+      }
+      
+      const data = await res.json();
+
+      clearInterval(interval);
+      fill.style.width = "100%";
+      label.textContent = `✓ ${data.details?.chunks || "?"} chunks indexed`;
+
+      setTimeout(() => { progress.style.display = "none"; fill.style.width = "0%"; }, 2000);
+      showToast(`'${file.name}' processed successfully`, "success");
+      loadDocuments();
+    } catch (err) {
+      clearInterval(interval);
+      progress.style.display = "none";
+      console.error("Upload process error:", err);
+      showToast("Upload failed: " + err.message, "error");
+    }
+  }
+
+  async function loadDocuments() {
+    try {
+      const res = await fetch(`${API}/documents`);
+      if (!res.ok) throw new Error(`HTTP error! status: ${res.status}`);
+      
+      const data = await res.json();
+      const list = document.getElementById("docList");
+
+      if (!data.documents || !data.documents.length) {
+        list.innerHTML = '<div class="doc-empty" id="docEmpty">No manuals loaded yet.</div>';
+        return;
+      }
+      list.innerHTML = data.documents.map(d => `
+        <div class="doc-item">
+          <span class="doc-icon">📘</span>
+          <span class="doc-name">${d}</span>
+          <button class="doc-del" onclick="deleteDoc('${d}')" title="Remove">✕</button>
+        </div>
+      `).join("");
+    } catch (err) {
+      console.error("Failed to load documents:", err);
+    }
+  }
+
+  async function deleteDoc(name) {
+    if (!confirm(`Remove '${name}' from the knowledge base?`)) return;
+    try {
+      const res = await fetch(`${API}/documents/${encodeURIComponent(name)}`, { method: "DELETE" });
+      if (!res.ok) throw new Error("Delete failed on server side");
+      showToast(`'${name}' removed`, "success");
+      loadDocuments();
+    } catch (err) {
+      console.error(err);
+      showToast("Could not delete document", "error");
+    }
+  }
+
+  // ── CHAT ──
+  async function sendMessage() {
+    const input = document.getElementById("queryInput");
+    const query = input.value.trim();
+    if (!query || isLoading) return;
+
+    document.getElementById("welcomeState")?.remove();
+    isLoading = true;
+    document.getElementById("sendBtn").disabled = true;
+
+    appendMessage("user", query);
+    input.value = "";
+    input.style.height = "auto";
+
+    const typingId = appendTyping();
+
+    try {
+      const res = await fetch(`${API}/chat`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query, session_id: sessionId })
+      });
+
+      // जर सर्व्हरवरून ४xx किंवा ५xx एरर आली तर ती इथे पकडली जाईल
+      if (!res.ok) {
+        const errDetails = await res.text();
+        throw new Error(`Server status ${res.status}: ${errDetails || 'Internal Error'}`);
+      }
+
+      const data = await res.json();
+
+      sessionId = data.session_id;
+      removeTyping(typingId);
+      
+      const reply = data.answer || data.reply || "No response field returned from backend.";
+      const sources = data.sources || [];
+      
+      appendMessage("assistant", reply, sources);
+    } catch (err) {
+      console.error("Actual Fetch/API Error:", err);
+      removeTyping(typingId);
+      appendMessage("assistant", `⚠ Error: ${err.message}. Please check your FastAPI console logs.`, []);
+    }
+
+    isLoading = false;
+    document.getElementById("sendBtn").disabled = false;
+    input.focus();
+  }
+
+  function appendMessage(role, text, sources = []) {
+    const container = document.getElementById("messages");
+    const div = document.createElement("div");
+    div.className = `msg ${role}`;
+
+    const formatted = text.replace(/\n/g, "<br>");
+
+    let sourcesHtml = "";
+    if (sources && sources.length) {
+      sourcesHtml = `
+        <div class="sources-row">
+          <span class="sources-label">SOURCES</span>
+          ${sources.map(s => `<span class="source-chip">📘 ${s}</span>`).join("")}
+        </div>`;
+    }
+
+    div.innerHTML = `
+      <div class="msg-role">${role === "user" ? "YOU" : "ASSISTANT"}</div>
+      <div class="msg-bubble"><p>${formatted}</p></div>
+      ${sourcesHtml}
+    `;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div;
+  }
+
+  function appendTyping() {
+    const container = document.getElementById("messages");
+    const div = document.createElement("div");
+    div.className = "msg assistant";
+    div.id = "typing-" + Date.now();
+    div.innerHTML = `
+      <div class="msg-role">ASSISTANT</div>
+      <div class="msg-bubble">
+        <div class="typing-dots"><span></span><span></span><span></span></div>
+      </div>`;
+    container.appendChild(div);
+    container.scrollTop = container.scrollHeight;
+    return div.id;
+  }
+
+  function removeTyping(id) {
+    document.getElementById(id)?.remove();
+  }
+
+  function clearChat() {
+    const container = document.getElementById("messages");
+    container.innerHTML = "";
+    sessionId = null;
+
+    const welcome = document.createElement("div");
+    welcome.className = "welcome-state";
+    welcome.id = "welcomeState";
+    welcome.innerHTML = `
+      <div class="welcome-glyph">🏭</div>
+      <div class="welcome-title">Manufacturing Manual AI</div>
+      <div class="welcome-desc">Ask anything about your uploaded manuals.</div>
+      <div class="welcome-steps">
+        <div class="step"><span class="step-num">01</span>Upload a PDF manual using the sidebar</div>
+        <div class="step"><span class="step-num">02</span>Wait for processing</div>
+        <div class="step"><span class="step-num">03</span>Ask questions below</div>
+      </div>`;
+    container.appendChild(welcome);
+  }
+
+  function showToast(msg, type = "") {
+    const t = document.getElementById("toast");
+    t.textContent = msg;
+    t.className = `show ${type}`;
+    setTimeout(() => { t.className = ""; }, 3000);
+  }
+
+  // init
+  loadDocuments();
+</script>
+</body>
+</html>
